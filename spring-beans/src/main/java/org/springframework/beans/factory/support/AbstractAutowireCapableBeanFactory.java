@@ -553,7 +553,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
 		}
 		if (instanceWrapper == null) {
-			//核心方法
+			//核心方法，创建bean的实例，一共有四种方式
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
 		Object bean = instanceWrapper.getWrappedInstance();
@@ -566,6 +566,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		synchronized (mbd.postProcessingLock) {
 			if (!mbd.postProcessed) {
 				try {
+					//调用applyMergedBeanDefinitionPostProcessors方法，搜集有@Autowired@Resoource@Value@PostConstruact等注解的方法或者属性，将类中属性和注解封装成对应注解的对象
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
@@ -946,6 +947,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
 					SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;
+					//代理类入口？？
 					exposedObject = ibp.getEarlyBeanReference(exposedObject, beanName);
 				}
 			}
@@ -1157,7 +1159,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			return obtainFromSupplier(instanceSupplier, beanName);
 		}
 
-		//如果beanDefinfition中存在FactoryMethod，用FactoryMethod实例化
+		//如果beanDefinfition中存在FactoryMethod，用FactoryMethod实例化,或者加了@Bean
 		if (mbd.getFactoryMethodName() != null) {
 			return instantiateUsingFactoryMethod(beanName, mbd, args);
 		}
@@ -1183,13 +1185,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Candidate constructors for autowiring?
+		// Autowired有参构造函数实例化
+		// 调用AutowiredAnnotationBeanPostProcessor中的determineCandidateConstructors方法，找到@Autowired修饰的有参构造函数
 		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
 		if (ctors != null || mbd.getResolvedAutowireMode() == AUTOWIRE_CONSTRUCTOR ||
 				mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args)) {
+			//反射调用@Autowired为true的构造函数
 			return autowireConstructor(beanName, mbd, ctors, args);
 		}
 
 		// Preferred constructors for default construction?
+		// 没有Autowired调用有参构造函数，没用，需要显式配置默认构造函数
 		ctors = mbd.getPreferredConstructors();
 		if (ctors != null) {
 			return autowireConstructor(beanName, mbd, ctors, null);

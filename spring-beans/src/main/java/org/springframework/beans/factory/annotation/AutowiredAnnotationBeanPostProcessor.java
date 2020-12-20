@@ -297,6 +297,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						else if (primaryConstructor != null) {
 							continue;
 						}
+						//这里，找到Autowired注解对应的属性
 						AnnotationAttributes ann = findAutowiredAnnotation(candidate);
 						if (ann == null) {
 							Class<?> userClass = ClassUtils.getUserClass(beanClass);
@@ -328,6 +329,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								}
 								requiredConstructor = candidate;
 							}
+							//找到合格的构造函数并返回
 							candidates.add(candidate);
 						}
 						else if (candidate.getParameterCount() == 0) {

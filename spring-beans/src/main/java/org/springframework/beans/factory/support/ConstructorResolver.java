@@ -383,12 +383,15 @@ class ConstructorResolver {
 		Class<?> factoryClass;
 		boolean isStatic;
 
+		//如果存在factory-bean标签，则factory-method不用static，会先实例化factory-bean中的类
+		//@Bean注解也会调用这个方法，@Configuration就是FactoryBean，@Bean就是factoryMethod
 		String factoryBeanName = mbd.getFactoryBeanName();
 		if (factoryBeanName != null) {
 			if (factoryBeanName.equals(beanName)) {
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 						"factory-bean reference points back to the same bean definition");
 			}
+			//实例化factoryBeanName的bean
 			factoryBean = this.beanFactory.getBean(factoryBeanName);
 			if (mbd.isSingleton() && this.beanFactory.containsSingleton(beanName)) {
 				throw new ImplicitlyAppearedSingletonException();
@@ -398,6 +401,8 @@ class ConstructorResolver {
 		}
 		else {
 			// It's a static factory method on the bean class.
+			// 如果 不存在factory-bean，则在当前bean类上调用一个静态的factory-method方法
+			// 因为当前类并没有被实例化，所以必须通过static来实现调用
 			if (!mbd.hasBeanClass()) {
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 						"bean definition declares neither a bean class nor a factory-bean reference");
@@ -440,6 +445,7 @@ class ConstructorResolver {
 			List<Method> candidateList = new ArrayList<>();
 			for (Method candidate : rawCandidates) {
 				if (Modifier.isStatic(candidate.getModifiers()) == isStatic && mbd.isFactoryMethod(candidate)) {
+					//找到static修饰符修饰的factoryMethod方法
 					candidateList.add(candidate);
 				}
 			}
@@ -453,6 +459,7 @@ class ConstructorResolver {
 						mbd.constructorArgumentsResolved = true;
 						mbd.resolvedConstructorArguments = EMPTY_ARGS;
 					}
+					//实例化factoryMethod的类
 					bw.setBeanInstance(instantiate(beanName, mbd, factoryBean, uniqueCandidate, EMPTY_ARGS));
 					return bw;
 				}
@@ -619,6 +626,7 @@ class ConstructorResolver {
 						this.beanFactory.getAccessControlContext());
 			}
 			else {
+				//实例化
 				return this.beanFactory.getInstantiationStrategy().instantiate(
 						mbd, beanName, this.beanFactory, factoryBean, factoryMethod, args);
 			}
