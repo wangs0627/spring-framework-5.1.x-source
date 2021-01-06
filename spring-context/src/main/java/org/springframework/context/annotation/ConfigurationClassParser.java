@@ -240,6 +240,7 @@ class ConfigurationClassParser {
 		// Recursively process the configuration class and its superclass hierarchy.
 		SourceClass sourceClass = asSourceClass(configClass);
 		do {
+			//核心流程
 			sourceClass = doProcessConfigurationClass(configClass, sourceClass);
 		}
 		while (sourceClass != null);
@@ -265,6 +266,7 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @PropertySource annotations
+		// 处理带有@PropertySource注解的
 		for (AnnotationAttributes propertySource : AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), PropertySources.class,
 				org.springframework.context.annotation.PropertySource.class)) {
@@ -278,21 +280,40 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @ComponentScan annotations
+		// 解析@ComponentScan注解
 		Set<AnnotationAttributes> componentScans = AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), ComponentScans.class, ComponentScan.class);
 		if (!componentScans.isEmpty() &&
 				!this.conditionEvaluator.shouldSkip(sourceClass.getMetadata(), ConfigurationPhase.REGISTER_BEAN)) {
 			for (AnnotationAttributes componentScan : componentScans) {
 				// The config class is annotated with @ComponentScan -> perform the scan immediately
+				// 执行当前componentScan的路径扫描，并将所有扫描到的包含@Component注解的类包装成BeanDefinitionHolder放入到集合中
 				Set<BeanDefinitionHolder> scannedBeanDefinitions =
 						this.componentScanParser.parse(componentScan, sourceClass.getMetadata().getClassName());
 				// Check the set of scanned definitions for any further config classes and parse recursively if needed
+				// 检查扫描的定义集是否有其他配置类注解，并在需要时递归解析
 				for (BeanDefinitionHolder holder : scannedBeanDefinitions) {
 					BeanDefinition bdCand = holder.getBeanDefinition().getOriginatingBeanDefinition();
 					if (bdCand == null) {
 						bdCand = holder.getBeanDefinition();
 					}
+					//检查是否包含@Configuration或者@Component、@ComponentScan、@Import、@ImportResource、@Bean存在
 					if (ConfigurationClassUtils.checkConfigurationClassCandidate(bdCand, this.metadataReaderFactory)) {
+						//如果存在，则递归解析当前类
+						/**
+						 * 举例,扫描到aaa类，还需要递归解析@Import和@Bean，然后将B和A类也包装起来
+						 * @Component
+						 * @Import(B.class)
+						 * public class aaa()
+						 * {
+						 * 		@Bean
+						 * 		public A a()
+						 * 	    {
+						 * 	    	xxxxxxx
+						 * 	    }
+						 * }
+						 *
+						 */
 						parse(bdCand.getBeanClassName(), holder.getBeanName());
 					}
 				}
@@ -300,6 +321,7 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @Import annotations
+		// 解析@Import注解
 		processImports(configClass, sourceClass, getImports(sourceClass), true);
 
 		// Process any @ImportResource annotations
@@ -509,6 +531,7 @@ class ConfigurationClassParser {
 	private Set<SourceClass> getImports(SourceClass sourceClass) throws IOException {
 		Set<SourceClass> imports = new LinkedHashSet<>();
 		Set<SourceClass> visited = new LinkedHashSet<>();
+		//递归找到@Import注解
 		collectImports(sourceClass, imports, visited);
 		return imports;
 	}
@@ -553,19 +576,26 @@ class ConfigurationClassParser {
 		else {
 			this.importStack.push(configClass);
 			try {
+				//只有含有@Import注解的类，且实现ImportSelector、ImportBeanDefinitionRegistrar才能调用
+				//如果实现ImportSelector、ImportBeanDefinitionRegistrar但没有@Import类，这两个实现是没有用的
 				for (SourceClass candidate : importCandidates) {
+					//执行ImportSelector流程
 					if (candidate.isAssignable(ImportSelector.class)) {
 						// Candidate class is an ImportSelector -> delegate to it to determine imports
 						Class<?> candidateClass = candidate.loadClass();
+						//实例化当前类
 						ImportSelector selector = BeanUtils.instantiateClass(candidateClass, ImportSelector.class);
 						ParserStrategyUtils.invokeAwareMethods(
 								selector, this.environment, this.resourceLoader, this.registry);
+						//实现DeferredImportSelector延迟加载接口
 						if (selector instanceof DeferredImportSelector) {
 							this.deferredImportSelectorHandler.handle(configClass, (DeferredImportSelector) selector);
 						}
 						else {
+							//调用ImportSelector接口的selectImports方法，返回所有需要导入的类的全限定名
 							String[] importClassNames = selector.selectImports(currentSourceClass.getMetadata());
 							Collection<SourceClass> importSourceClasses = asSourceClasses(importClassNames);
+							//再次递归调用
 							processImports(configClass, currentSourceClass, importSourceClasses, false);
 						}
 					}

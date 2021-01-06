@@ -219,6 +219,7 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 			filteredPostProcessors = new ArrayList<>(processors.size());
 			for (BeanPostProcessor processor : processors) {
 				if (processor instanceof DestructionAwareBeanPostProcessor) {
+					//找到带@PreDestory注释的方法
 					DestructionAwareBeanPostProcessor dabpp = (DestructionAwareBeanPostProcessor) processor;
 					if (dabpp.requiresDestruction(bean)) {
 						filteredPostProcessors.add(dabpp);
