@@ -317,9 +317,11 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		Set<BeanDefinitionHolder> candidates = new LinkedHashSet<>(configCandidates);
 		Set<ConfigurationClass> alreadyParsed = new HashSet<>(configCandidates.size());
 		do {
+			//核心流程：解析候选的注解，并将需要导入的类包装成元数据放入到BeanDefinitionMap中
 			parser.parse(candidates);
 			parser.validate();
 
+			//取到已经扫描到的类的元数据信息
 			Set<ConfigurationClass> configClasses = new LinkedHashSet<>(parser.getConfigurationClasses());
 			configClasses.removeAll(alreadyParsed);
 
@@ -329,6 +331,8 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 						registry, this.sourceExtractor, this.resourceLoader, this.environment,
 						this.importBeanNameGenerator, parser.getImportRegistry());
 			}
+			//针对已扫描到的元数据的@Bean注解、@ImportSource注解、@Import内部类和ImportBeanDefinitionRegistry的实现类的解析，解析
+			//完成后，该放入到元数据属性的放入属性，该放入BeanDefinitionMap的放入到map中，即针对@CommonScan扫描的补充
 			this.reader.loadBeanDefinitions(configClasses);
 			alreadyParsed.addAll(configClasses);
 

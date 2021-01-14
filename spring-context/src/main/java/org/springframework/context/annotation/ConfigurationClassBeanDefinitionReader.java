@@ -125,6 +125,7 @@ class ConfigurationClassBeanDefinitionReader {
 	private void loadBeanDefinitionsForConfigurationClass(
 			ConfigurationClass configClass, TrackedConditionEvaluator trackedConditionEvaluator) {
 
+		//判断当前这个类是否需要过滤，不进行初始化，condition的matches比较
 		if (trackedConditionEvaluator.shouldSkip(configClass)) {
 			String beanName = configClass.getBeanName();
 			if (StringUtils.hasLength(beanName) && this.registry.containsBeanDefinition(beanName)) {
@@ -134,14 +135,18 @@ class ConfigurationClassBeanDefinitionReader {
 			return;
 		}
 
+		//判断是否是通过@Import注解导入进来的，依据是importby属性判断
 		if (configClass.isImported()) {
 			registerBeanDefinitionForImportedConfigurationClass(configClass);
 		}
+
+		//解析@Bean，将其封装成factoryMethod属性
 		for (BeanMethod beanMethod : configClass.getBeanMethods()) {
 			loadBeanDefinitionsForBeanMethod(beanMethod);
 		}
-
+		//解析@ImportResource注解，加载xml
 		loadBeanDefinitionsFromImportedResources(configClass.getImportedResources());
+		//调用ImportBeanDefinitionRegistrar的registerBeanDefinitions方法
 		loadBeanDefinitionsFromRegistrars(configClass.getImportBeanDefinitionRegistrars());
 	}
 

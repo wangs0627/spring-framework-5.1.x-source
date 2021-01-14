@@ -216,6 +216,7 @@ class ConfigurationClassParser {
 
 
 	protected void processConfigurationClass(ConfigurationClass configClass) throws IOException {
+		//对@Conditional注解进行支持，过滤一些没必要实例化的类
 		if (this.conditionEvaluator.shouldSkip(configClass.getMetadata(), ConfigurationPhase.PARSE_CONFIGURATION)) {
 			return;
 		}
@@ -815,6 +816,7 @@ class ConfigurationClassParser {
 		private final Map<AnnotationMetadata, ConfigurationClass> configurationClasses = new HashMap<>();
 
 		public void register(DeferredImportSelectorHolder deferredImport) {
+			//调用DeferredImportSelector接口的getImportGroup()方法，返回实现Group的内部类
 			Class<? extends Group> group = deferredImport.getImportSelector().getImportGroup();
 			DeferredImportSelectorGrouping grouping = this.groupings.computeIfAbsent(
 					(group != null ? group : deferredImport),
@@ -829,6 +831,7 @@ class ConfigurationClassParser {
 				grouping.getImports().forEach(entry -> {
 					ConfigurationClass configurationClass = this.configurationClasses.get(entry.getMetadata());
 					try {
+						//递归解析
 						processImports(configurationClass, asSourceClass(configurationClass),
 								asSourceClasses(entry.getImportClassName()), false);
 					}
@@ -845,6 +848,7 @@ class ConfigurationClassParser {
 		}
 
 		private Group createGroup(@Nullable Class<? extends Group> type) {
+			//如果实现了DeferredImportSelector而没有重写getImportGroup方法，则返回一个默认的Group实现类
 			Class<? extends Group> effectiveType = (type != null ? type : DefaultDeferredImportSelectorGroup.class);
 			Group group = BeanUtils.instantiateClass(effectiveType);
 			ParserStrategyUtils.invokeAwareMethods(group,
@@ -900,6 +904,7 @@ class ConfigurationClassParser {
 				this.group.process(deferredImport.getConfigurationClass().getMetadata(),
 						deferredImport.getImportSelector());
 			}
+			//调用Group接口的selectImports方法，如果没有没有实现getImportGroup方法，这里实际上是调用外部selectImports方法
 			return this.group.selectImports();
 		}
 	}
